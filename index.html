@@ -4369,11 +4369,16 @@
     FB_COLLS.forEach(function(k){
       FB.unsub.push(fbRoot().collection(k).onSnapshot(function(snap){
         if(snap.metadata.hasPendingWrites){ settle(); return; }
-        var arr=[]; FB.last[k]={};
+        var arr=[]; var seen={};
         snap.forEach(function(d){
           var v=d.data().v; if(!v) return;
-          arr.push(v); FB.last[k][d.id]=JSON.stringify(v);
+          arr.push(v); seen[d.id]=JSON.stringify(v);
         });
+        /* An empty collection up top must never flatten real records down here.
+           A cloud that holds nothing for this list is an unseeded cloud, not a
+           deletion, so keep what is on the device and let the push seed it. */
+        if(!arr.length && (S[k]||[]).length){ settle(); return; }
+        FB.last[k]=seen;
         S[k]=arr;
         fbLocal(k);
         if(!FB.pulling) refreshEverything();
